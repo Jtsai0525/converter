@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>智慧匯率計算機</title>
+    <style>
+        :root{--bg-color:#f0f0f0;--display-bg:#222;--text-color:#fff;--btn-bg:#fff;--btn-text:#333;--operator-bg:#f9a825;--operator-text:#fff;--currency-bg:#0277bd;--currency-text:#fff;--currency-active-bg:#01579b}
+        body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;background-color:var(--bg-color)}
+        .calculator{width:100%;max-width:375px;border-radius:20px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,0.1);display:flex;flex-direction:column;height:100vh;max-height:700px}
+        #status-bar { padding: 5px 20px; background-color: #333; color: white; text-align: center; font-size: 0.9rem; }
+        .status-ok { color: #81c784; }
+        .status-error { color: #e57373; font-weight: bold; }
+        .display{background-color:var(--display-bg);color:var(--text-color);padding:10px 20px 20px;text-align:right;flex-grow:1;display:flex;flex-direction:column;justify-content:space-between;}
+        #conversion-indicator { font-size: 1rem; color: #aaa; text-align: left; font-weight: 500; height: 1.2rem;}
+        .display-main{font-size:2.8rem;font-weight:300;word-wrap:break-word;word-break:break-all}
+        .display-sub{font-size:1.8rem;color:#aaa;height:40px;overflow:hidden;white-space:nowrap;font-weight:500;}
+        .buttons{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background-color:#ccc}
+        .btn{background-color:var(--btn-bg);color:var(--btn-text);border:none;padding:20px 0;font-size:1.5rem;cursor:pointer;transition:background-color .2s;-webkit-tap-highlight-color:rgba(0,0,0,.1)}
+        .btn:active{background-color:#ddd}
+        .btn.operator{
+            background-color:var(--operator-bg);
+            color:var(--operator-text);
+            /* 【CSS 修正】再次放大運算子 */
+            font-size: 1.8rem;
+            font-weight: 500;
+        }
+        .btn.operator:active{background-color:#fbc02d}
+        .btn.currency{background-color:var(--currency-bg);color:var(--currency-text)}
+        .btn.currency.active{background-color:var(--currency-active-bg);box-shadow:inset 0 0 10px rgba(0,0,0,.2)}
+        .btn.span-2{grid-column:span 2}
+    </style>
+</head>
+<body>
+    <div class="calculator">
+        <div id="status-bar">狀態：檢測中...</div>
+        <div class="display">
+            <div id="conversion-indicator"></div>
+            <div>
+                <div class="display-main" id="display-input">0</div>
+                <div class="display-sub" id="display-result"></div>
+            </div>
+        </div>
+        <div class="buttons">
+             <button class="btn currency" data-value="KRW">KRW</button>
+            <button class="btn currency" data-value="JPY">JPY</button>
+            <button class="btn currency" data-value="USD">USD</button>
+            <button class="btn currency" data-value="CNY">CNY</button>
+            <button class="btn currency span-4" data-value="TWD">TWD</button>
+            <button class="btn operator" data-value="clear">C</button>
+            <button class="btn operator" data-value="backspace">⌫</button>
+            <button class="btn operator" data-value="to">To</button>
+            <button class="btn operator" data-value="/">÷</button>
+            <button class="btn" data-value="7">7</button>
+            <button class="btn" data-value="8">8</button>
+            <button class="btn" data-value="9">9</button>
+            <button class="btn operator" data-value="*">×</button>
+            <button class="btn" data-value="4">4</button>
+            <button class="btn" data-value="5">5</button>
+            <button class="btn" data-value="6">6</button>
+            <button class="btn operator" data-value="-">-</button>
+            <button class="btn" data-value="1">1</button>
+            <button class="btn" data-value="2">2</button>
+            <button class="btn" data-value="3">3</button>
+            <button class="btn operator" data-value="+">+</button>
+            <button class="btn span-2" data-value="0">0</button>
+            <button class="btn" data-value=".">.</button>
+            <button class="btn operator" data-value="=">=</button>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const displayInput = document.getElementById('display-input');
+        const displayResult = document.getElementById('display-result');
+        const buttonsContainer = document.querySelector('.buttons');
+        const currencyButtons = document.querySelectorAll('.btn.currency');
+        const statusBar = document.getElementById('status-bar');
+        const conversionIndicator = document.getElementById('conversion-indicator');
+        
+        let fromCurrency = 'TWD', toCurrency = 'JPY', currentInput = '0', currentRate = null, isSettingToCurrency = false, waitingForNewInput = true;
+        let mode = 'converter';
+        const currencyNames = { TWD: '台幣', JPY: '日幣', USD: '美元', KRW: '韓圜', CNY: '人民幣' };
+
+        function liveConvert() {
+            if (mode !== 'converter' || currentRate === null) {
+                displayResult.textContent = '';
+                return;
+            }
+            let sourceAmount = 0;
+            try {
+                sourceAmount = new Function(`return ${currentInput.replace(/--/g, '- -')}`)();
+            } catch (error) {
+                const match = currentInput.match(/^-?[\d\.]+/);
+                sourceAmount = match ? parseFloat(match[0]) : 0;
+            }
+            const convertedAmount = sourceAmount * currentRate;
+            if (isNaN(convertedAmount) || !isFinite(convertedAmount)) {
+                displayResult.textContent = "計算錯誤";
+                return;
+            }
+            displayResult.textContent = `= ${convertedAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        }
+        
+        // --- 其他函式 (為了保持程式碼簡潔，此處省略未變動的函式) ---
+        let updateInputDisplay = () => {}, updateCurrencyButtons = () => {}, updateConversionIndicator = () => {}, testNetworkConnection = async () => {}, fetchFromApi1 = async () => {}, fetchFromApi2 = async () => {}, fetchAndUpdateRate = async () => {}, handleCurrency = () => {}, handleDigit = () => {}, handleOperator = () => {}, init = async () => {};
+        // --- All functions below are copied here for completeness ---
+        updateInputDisplay = function() { displayInput.textContent = currentInput; }
+        updateCurrencyButtons = function() { currencyButtons.forEach(btn => { btn.classList.remove('active'); if (btn.dataset.value === fromCurrency || btn.dataset.value === toCurrency) { btn.classList.add('active'); } }); }
+        updateConversionIndicator = function() { if (mode === 'calculator') { conversionIndicator.textContent = '計算機模式'; return; } if (fromCurrency && toCurrency) { const fromName = currencyNames[fromCurrency] || fromCurrency; const toName = currencyNames[toCurrency] || toCurrency; conversionIndicator.textContent = `${fromName} 轉換為 ${toName}`; } else if (fromCurrency) { conversionIndicator.textContent = `${currencyNames[fromCurrency] || fromCurrency} 轉換為...`; } }
+        const apiFetchers = [async function(from, to) { const url = `https://api.exchangerate.host/convert?from=${from}&to=${to}&amount=1`; const response = await fetch(url); if (!response.ok) throw new Error('API 1 網路回應錯誤'); const data = await response.json(); const rate = parseFloat(data.result); if (!isFinite(rate)) throw new Error('API 1 回傳非數字匯率'); return rate; }, async function(from, to) { const fromLower = from.toLowerCase(); const toLower = to.toLowerCase(); const url = `https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/${fromLower}.json`; const response = await fetch(url); if (!response.ok) throw new Error('API 2 網路回應錯誤'); const data = await response.json(); const rate = parseFloat(data[fromLower][toLower]); if (!isFinite(rate)) throw new Error('API 2 回傳非數字匯率'); return rate; }];
+        fetchAndUpdateRate = async function() { if (!fromCurrency || !toCurrency) return; if (fromCurrency === toCurrency) { currentRate = 1; liveConvert(); return; } displayResult.textContent = '獲取匯率中...'; for (const fetcher of apiFetchers) { try { currentRate = await fetcher(fromCurrency, toCurrency); statusBar.textContent = '狀態：匯率已更新'; statusBar.className = 'status-ok'; liveConvert(); return; } catch (error) { console.error(error); } } displayResult.textContent = '無法獲取匯率'; statusBar.textContent = '狀態：獲取匯率失敗'; statusBar.className = 'status-error'; currentRate = null; }
+        handleCurrency = function(currency) { if (mode === 'calculator') { mode = 'converter'; fromCurrency = 'TWD'; toCurrency = 'JPY'; } if (isSettingToCurrency) { toCurrency = currency; isSettingToCurrency = false; } else { fromCurrency = currency; toCurrency = null; } waitingForNewInput = true; updateCurrencyButtons(); updateConversionIndicator(); if (fromCurrency && toCurrency) { fetchAndUpdateRate(); } else { displayResult.textContent = `...`; } }
+        handleDigit = function(digit) { if (waitingForNewInput) { currentInput = '0'; waitingForNewInput = false; } if (digit === '.' && currentInput.match(/[+\-*/]?[\d\.]*$/)[0].includes('.')) return; if (currentInput.length > 20) return; currentInput = currentInput === '0' && digit !== '.' ? digit : currentInput + digit; if (mode === 'converter') liveConvert(); }
+        handleOperator = function(op) { waitingForNewInput = false; if (op === 'clear') { mode = 'calculator'; currentInput = '0'; waitingForNewInput = true; updateConversionIndicator(); liveConvert(); return; } if(mode === 'converter' && op !== 'to' && op !== '=' && op !== 'backspace') { if (/[+\-*/]$/.test(currentInput)) { currentInput = currentInput.slice(0, -1); } } switch(op) { case 'to': if (mode === 'calculator') mode = 'converter'; isSettingToCurrency = true; updateConversionIndicator(); break; case 'backspace': currentInput = currentInput.length > 1 ? currentInput.slice(0, -1) : '0'; if (currentInput === '0') waitingForNewInput = true; if (mode === 'converter') liveConvert(); break; case '=': try { let result = new Function(`return ${currentInput.replace(/--/g, '- -')}`)(); currentInput = !isFinite(result) ? '0' : String(result); } catch { } waitingForNewInput = true; if (mode === 'converter') liveConvert(); break; default: currentInput += op; break; } }
+        testNetworkConnection = async function() { try { await fetch('https://jsonplaceholder.typicode.com/todos/1'); statusBar.textContent = '狀態：網路連線正常'; statusBar.className = 'status-ok'; return true; } catch (error) { statusBar.textContent = '狀態：網路連線失敗！'; statusBar.className = 'status-error'; return false; } }
+        buttonsContainer.addEventListener('click', (event) => { const target = event.target; if (!target.matches('button')) return; const value = target.dataset.value; const type = target.classList.contains('currency') ? 'currency' : target.classList.contains('operator') ? 'operator' : 'digit'; switch(type) { case 'currency': handleCurrency(value); break; case 'operator': handleOperator(value); break; case 'digit': handleDigit(value); break; } updateInputDisplay(); });
+        init = async function() { updateCurrencyButtons(); updateInputDisplay(); updateConversionIndicator(); const isOnline = await testNetworkConnection(); if (isOnline) { await fetchAndUpdateRate(); } else { displayResult.textContent = '離線模式：僅供計算'; currentRate = null; } }
+
+        init();
+    });
+    </script>
+</body>
+</html>
