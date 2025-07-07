@@ -18,13 +18,7 @@
         .buttons{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background-color:#ccc}
         .btn{background-color:var(--btn-bg);color:var(--btn-text);border:none;padding:20px 0;font-size:1.5rem;cursor:pointer;transition:background-color .2s;-webkit-tap-highlight-color:rgba(0,0,0,.1)}
         .btn:active{background-color:#ddd}
-        .btn.operator{
-            background-color:var(--operator-bg);
-            color:var(--operator-text);
-            /* 【CSS 修正】再次放大運算子 */
-            font-size: 1.8rem;
-            font-weight: 500;
-        }
+        .btn.operator{background-color:var(--operator-bg);color:var(--operator-text);font-size: 2.0rem;font-weight: 500;}
         .btn.operator:active{background-color:#fbc02d}
         .btn.currency{background-color:var(--currency-bg);color:var(--currency-text)}
         .btn.currency.active{background-color:var(--currency-active-bg);box-shadow:inset 0 0 10px rgba(0,0,0,.2)}
@@ -42,7 +36,7 @@
             </div>
         </div>
         <div class="buttons">
-             <button class="btn currency" data-value="KRW">KRW</button>
+            <button class="btn currency" data-value="KRW">KRW</button>
             <button class="btn currency" data-value="JPY">JPY</button>
             <button class="btn currency" data-value="USD">USD</button>
             <button class="btn currency" data-value="CNY">CNY</button>
@@ -99,7 +93,8 @@
                 displayResult.textContent = "計算錯誤";
                 return;
             }
-            displayResult.textContent = `= ${convertedAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            // 【JS 修正】將 maximumFractionDigits 從 2 改回 4
+            displayResult.textContent = `= ${convertedAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 4})}`;
         }
         
         // --- 其他函式 (為了保持程式碼簡潔，此處省略未變動的函式) ---
